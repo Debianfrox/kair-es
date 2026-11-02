@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kasir Es Degan & Rekap Harian</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: Arial, sans-serif; }
+        body { background-color: #f4f6f9; padding: 15px; color: #333; }
+        .header { display: flex; justify-content: space-between; align-items: center; background: #2c3e50; color: white; padding: 15px; border-radius: 8px; margin-bottom: 20px; }
+        .header h1 { font-size: 20px; }
+        .btn-reset { background: #e74c3c; color: white; border: none; padding: 10px 15px; border-radius: 5px; cursor: pointer; font-weight: bold; font-size: 13px; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; }
+        .card { background: white; border-radius: 8px; padding: 15px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        .card h2 { margin-bottom: 15px; font-size: 18px; border-bottom: 2px solid #eee; padding-bottom: 5px; color: #2c3e50; }
+        .menu-list { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .menu-btn { background: #e8f5e9; border: 1px solid #c8e6c9; padding: 12px; border-radius: 6px; cursor: pointer; text-align: left; transition: 0.2s; }
+        .menu-btn:hover { background: #c8e6c9; }
+        .menu-btn strong { display: block; font-size: 14px; color: #1b5e20; }
+        .menu-btn span { color: #2e7d32; font-weight: bold; font-size: 13px; }
+        .cart-item { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid #eee; font-size: 14px; }
+        .cart-controls { display: flex; gap: 6px; align-items: center; }
+        .cart-controls button { width: 28px; height: 28px; border: none; background: #ddd; border-radius: 4px; cursor: pointer; font-weight: bold; }
+        .total-box { margin-top: 15px; padding-top: 10px; border-top: 2px solid #333; font-size: 18px; font-weight: bold; display: flex; justify-content: space-between; }
+        .input-group { margin-top: 12px; }
+        .input-group label { display: block; font-size: 12px; margin-bottom: 4px; font-weight: bold; color: #555; }
+        .input-group input { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 14px; }
+        .btn-submit { width: 100%; background: #27ae60; color: white; border: none; padding: 12px; margin-top: 15px; border-radius: 5px; cursor: pointer; font-size: 16px; font-weight: bold; }
+        .btn-submit:hover { background: #219653; }
+        .summary-box { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 15px; text-align: center; }
+        .summary-card { padding: 10px 5px; border-radius: 6px; }
+        .bg-masuk { background: #d4edda; color: #155724; }
+        .bg-keluar { background: #f8d7da; color: #721c24; }
+        .bg-bersih { background: #d1ecf1; color: #0c5460; }
+        .summary-card small { font-size: 11px; font-weight: bold; display: block; }
+        .summary-card h4 { font-size: 13px; margin-top: 4px; }
+        .target-box { background: #fff3cd; padding: 12px; border-radius: 6px; margin-bottom: 15px; border: 1px solid #ffeeba; font-size: 13px; color: #856404; }
+        table { width: 100%; border-collapse: collapse; margin-top: 8px; font-size: 12px; }
+        th, td { border: 1px solid #ddd; padding: 6px; text-align: left; }
+        th { background: #f2f2f2; }
+    </style>
+</head>
+<body>
+
+<div class="header">
+    <h1>Kasir Es Degan</h1>
+    <button class="btn-reset" onclick="resetHarian()">🔄 Reset Rekap</button>
+</div>
+
+<div class="grid">
+    <!-- KOLOM KIRI: MENU & KASIR -->
+    <div class="card">
+        <h2>Daftar Menu</h2>
+        <div class="menu-list" id="menu-container"></div>
+        
+        <h2 style="margin-top: 20px;">Pesanan</h2>
+        <div id="cart-container"><p style="color:#888; font-size: 13px;">Belum ada menu dipilih.</p></div>
+        
+        <div class="total-box">
+            <span>Total:</span>
+            <span id="cart-total">Rp 0</span>
+        </div>
+
+        <div class="input-group">
+            <label>Uang Bayar (Rp):</label>
+            <input type="number" id="bayar-input" placeholder="0" oninput="hitungKembalian()">
+        </div>
+        <div class="input-group">
+            <label>Kembalian:</label>
+            <input type="text" id="kembalian-text" readonly value="Rp 0" style="background: #e9ecef;">
+        </div>
+
+        <button class="btn-submit" onclick="prosesTransaksi()">💾 Simpan Transaksi</button>
+    </div>
+
+    <!-- KOLOM KANAN: PENGELUARAN & REKAP -->
+    <div class="card">
+        <h2>Input Pengeluaran</h2>
+        <div class="input-group">
+            <label>Keterangan Pengeluaran:</label>
+            <input type="text" id="pengeluaran-ket" placeholder="Contoh: Es, Gula, Galon, dll">
+        </div>
+        <div class="input-group">
+            <label>Nominal (Rp):</label>
+            <input type="number" id="pengeluaran-nom" placeholder="0">
+        </div>
+        <button class="btn-submit" style="background: #e67e22;" onclick="simpanPengeluaran()">📥 Catat Pengeluaran</button>
+
+        <h2 style="margin-top: 25px;">Rangkuman Harian</h2>
+        <div class="summary-box">
+            <div class="summary-card bg-masuk">
+                <small>Kotor</small>
+                <h4 id="total-masuk">Rp 0</h4>
+            </div>
+            <div class="summary-card bg-keluar">
+                <small>Pengeluaran</small>
+                <h4 id="total-keluar">Rp 0</h4>
+            </div>
+            <div class="summary-card bg-bersih">
+                <small>Bersih</small>
+                <h4 id="total-bersih">Rp 0</h4>
+            </div>
+        </div>
+
+        <div class="target-box" id="info-target-box">
+            <div>🟢 <strong>Menu Ijo Laku:</strong> <span id="info-ijo">0 porsi (Rp 0)</span></div>
+            <div style="margin-top: 6px;">🎯 <strong>Target (1.600.000):</strong> <span id="info-selisih-target">Kurang Rp 1.600.000</span></div>
+        </div>
+
+        <h3>Riwayat Pemasukan</h3>
+        <div style="max-height: 120px; overflow-y: auto;">
+            <table>
+                <thead><tr><th>Jam</th><th>Item</th><th>Total</th></tr></thead>
+                <tbody id="tbl-masuk"><tr><td colspan="3" style="text-align:center; color:#888;">Belum ada transaksi</td></tr></tbody>
+            </table>
+        </div>
+
+        <h3 style="margin-top: 15px;">Riwayat Pengeluaran</h3>
+        <div style="max-height: 120px; overflow-y: auto;">
+            <table>
+                <thead><tr><th>Jam</th><th>Keterangan</th><th>Nominal</th></tr></thead>
+                <tbody id="tbl-keluar"><tr><td colspan="3" style="text-align:center; color:#888;">Belum ada pengeluaran</td></tr></tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script>
+    const menuList = [
+        { id: 1, nama: "Es Degan", harga: 5000 },
+        { id: 2, nama: "Es Sedikit", harga: 6000 },
+        { id: 3, nama: "Tanpa Es", harga: 7000 },
+        { id: 4, nama: "Bijian", harga: 12000 },
+        { id: 5, nama: "Bijian Es Gula", harga: 15000 },
+        { id: 6, nama: "Bijian Es", harga: 13000 },
+        { id: 7, nama: "Bijian Gula", harga: 14000 },
+        { id: 8, nama: "Ijo", harga: 20000 }
+    ];
+
+    let cart = {};
+
+    function getData() {
+        try {
+            let data = localStorage.getItem('rekap_es_degan_v2');
+            if (!data) {
+                return { pemasukan: [], pengeluaran: [] };
+            }
+            return JSON.parse(data);
+        } catch (e) {
+            return { pemasukan: [], pengeluaran: [] };
+        }
+    }
+
+    function saveData(data) {
+        localStorage.setItem('rekap_es_degan_v2', JSON.stringify(data));
+    }
+
+    function initMenu() {
+        const container = document.getElementById('menu-container');
+        container.innerHTML = menuList.map(m => `
+            <div class="menu-btn" onclick="addToCart(${m.id})">
+                <strong>${m.nama}</strong>
+                <span>Rp ${m.harga.toLocaleString('id-ID')}</span>
+            </div>
+        `).join('');
+    }
+
+    function addToCart(id) {
+        if (cart[id]) {
+            cart[id].qty += 1;
+        } else {
+            const item = menuList.find(m => m.id === id);
+            cart[id] = { ...item, qty: 1 };
+        }
+        renderCart();
+    }
+
+    function updateQty(id, delta) {
+        if (cart[id]) {
+            cart[id].qty += delta;
+            if (cart[id].qty <= 0) {
+                delete cart[id];
+            }
+        }
+        renderCart();
+    }
+
+    function getTotalCart() {
+        return Object.values(cart).reduce((sum, item) => sum + (item.harga * item.qty), 0);
+    }
+
+    function renderCart() {
+        const container = document.getElementById('cart-container');
+        const items = Object.values(cart);
+        if (items.length === 0) {
+            container.innerHTML = '<p style="color:#888; font-size: 13px;">Belum ada menu dipilih.</p>';
+            document.getElementById('cart-total').innerText = 'Rp 0';
+            hitungKembalian();
+            return;
+        }
+        container.innerHTML = items.map(item => `
+            <div class="cart-item">
+                <div>
+                    <div><strong>${item.nama}</strong></div>
+                    <small>@ Rp ${item.harga.toLocaleString('id-ID')}</small>
+                </div>
+                <div class="cart-controls">
+                    <button onclick="updateQty(${item.id}, -1)">-</button>
+                    <span>${item.qty}</span>
+                    <button onclick="updateQty(${item.id}, 1)">+</button>
+                </div>
+            </div>
+        `).join('');
+        
+        document.getElementById('cart-total').innerText = 'Rp ' + getTotalCart().toLocaleString('id-ID');
+        hitungKembalian();
+    }
+
+    function hitungKembalian() {
+        const total = getTotalCart();
+        const bayar = parseFloat(document.getElementById('bayar-input').value) || 0;
+        const kembalian = bayar - total;
+        document.getElementById('kembalian-text').value = 'Rp ' + (kembalian >= 0 ? kembalian.toLocaleString('id-ID') : 0);
+    }
+
+    function prosesTransaksi() {
+        const items = Object.values(cart);
+        const total = getTotalCart();
+        if (items.length === 0) return alert('Pilih menu terlebih dahulu!');
+
+        const now = new Date();
+        const entry = {
+            jam: now.toTimeString().split(' ')[0],
+            items: items,
+            total: total
+        };
+
+        let data = getData();
+        data.pemasukan.push(entry);
+        saveData(data);
+
+        cart = {};
+        document.getElementById('bayar-input').value = '';
+        renderCart();
+        loadRekap();
+        alert('Transaksi Berhasil Disimpan!');
+    }
+
+    function simpanPengeluaran() {
+        const ket = document.getElementById('pengeluaran-ket').value.trim();
+        const nom = parseFloat(document.getElementById('pengeluaran-nom').value) || 0;
+        if (!ket || nom <= 0) return alert('Isi keterangan dan nominal pengeluaran dengan benar!');
+
+        const now = new Date();
+        const entry = {
+            jam: now.toTimeString().split(' ')[0],
+            keterangan: ket,
+            nominal: nom
+        };
+
+        let data = getData();
+        data.pengeluaran.push(entry);
+        saveData(data);
+
+        document.getElementById('pengeluaran-ket').value = '';
+        document.getElementById('pengeluaran-nom').value = '';
+        loadRekap();
+        alert('Pengeluaran Berhasil Dicatat!');
+    }
+
+    function loadRekap() {
+        const data = getData();
+
+        let totalKotor = data.pemasukan.reduce((sum, i) => sum + i.total, 0);
+        let totalKeluar = data.pengeluaran.reduce((sum, i) => sum + i.nominal, 0);
+        let totalBersih = totalKotor - totalKeluar;
+
+        // Hitung Menu Ijo yang laku
+        let ijoQty = 0;
+        let ijoRupiah = 0;
+        data.pemasukan.forEach(trx => {
+            trx.items.forEach(it => {
+                if (it.nama === "Ijo") {
+                    ijoQty += it.qty;
+                    ijoRupiah += (it.harga * it.qty);
+                }
+            });
+        });
+
+        // Target Harian Rp 1.600.000
+        const TARGET = 1600000;
+        let selisih = totalKotor - TARGET;
+        let statusTarget = "";
+        const targetBox = document.getElementById('info-target-box');
+        
+        if (selisih >= 0) {
+            statusTarget = `Lebih +Rp ${selisih.toLocaleString('id-ID')} dari target`;
+            targetBox.style.background = "#d4edda";
+            targetBox.style.borderColor = "#c3e6cb";
+            targetBox.style.color = "#155724";
+        } else {
+            statusTarget = `Kurang Rp ${Math.abs(selisih).toLocaleString('id-ID')} dari target`;
+            targetBox.style.background = "#fff3cd";
+            targetBox.style.borderColor = "#ffeeba";
+            targetBox.style.color = "#856404";
+        }
+
+        document.getElementById('total-masuk').innerText = 'Rp ' + totalKotor.toLocaleString('id-ID');
+        document.getElementById('total-keluar').innerText = 'Rp ' + totalKeluar.toLocaleString('id-ID');
+        document.getElementById('total-bersih').innerText = 'Rp ' + totalBersih.toLocaleString('id-ID');
+
+        document.getElementById('info-ijo').innerText = `${ijoQty} porsi (Rp ${ijoRupiah.toLocaleString('id-ID')})`;
+        document.getElementById('info-selisih-target').innerText = statusTarget;
+
+        // Render tabel pemasukan
+        const tblMasuk = document.getElementById('tbl-masuk');
+        if (data.pemasukan.length === 0) {
+            tblMasuk.innerHTML = `<tr><td colspan="3" style="text-align:center; color:#888;">Belum ada transaksi</td></tr>`;
+        } else {
+            tblMasuk.innerHTML = data.pemasukan.map(i => `
+                <tr>
+                    <td>${i.jam}</td>
+                    <td>${i.items.map(it => `${it.nama} (${it.qty})`).join(', ')}</td>
+                    <td>Rp ${i.total.toLocaleString('id-ID')}</td>
+                </tr>
+            `).reverse().join('');
+        }
+
+        // Render tabel pengeluaran
+        const tblKeluar = document.getElementById('tbl-keluar');
+        if (data.pengeluaran.length === 0) {
+            tblKeluar.innerHTML = `<tr><td colspan="3" style="text-align:center; color:#888;">Belum ada pengeluaran</td></tr>`;
+        } else {
+            tblKeluar.innerHTML = data.pengeluaran.map(i => `
+                <tr>
+                    <td>${i.jam}</td>
+                    <td>${i.keterangan}</td>
+                    <td>Rp ${i.nominal.toLocaleString('id-ID')}</td>
+                </tr>
+            `).reverse().join('');
+        }
+    }
+
+    function resetHarian() {
+        if (confirm('Yakin ingin mereset seluruh data pemasukan & pengeluaran hari ini?')) {
+            localStorage.removeItem('rekap_es_degan_v2');
+            loadRekap();
+            alert('Data rekap harian berhasil direset dari nol!');
+        }
+    }
+
+    // Jalankan saat pertama kali dibuka
+    initMenu();
+    loadRekap();
+</script>
+
+</body>
+</html>
